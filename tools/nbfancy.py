@@ -19,11 +19,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('input',
                     type=argparse.FileType('r'),
                     help='Plain input notebook')
-                    
+
 parser.add_argument('output',
                     type=str,
                     help='Name of fancy notebook to output')
-                    
+
 parser.add_argument('--headercell',
                     type=argparse.FileType('r'),
                     help='Notebook containing header for all notebooks')
@@ -31,7 +31,7 @@ parser.add_argument('--headercell',
 parser.add_argument('--footercell',
                     type=argparse.FileType('r'),
                     help='Notebook containing footer for all notebooks')
-                    
+
 parser.add_argument('--sourcedir',
                     type=isdir,
                     help='Directory with existing notebook structure')
@@ -128,13 +128,13 @@ for c in markdownlist:
             solnb = nf.v4.new_notebook()
             solnb['metadata'] = plain['metadata']
             solnb['cells'].append(nf.v4.new_markdown_cell(source='# Solutions'))
-        
+
         solnb['cells'].append(nf.v4.new_markdown_cell(source=''))
         # REDEFINE c
         solnb['cells'][-1] = c.copy()
         plain['cells'].remove(c)
         c = solnb['cells'][-1]
-        
+
         colour = 'blue'
         symbol = 'eye'
         subtitle = line[0].split(':')
@@ -146,6 +146,14 @@ for c in markdownlist:
     elif 'Key Points' in line[0]:
         colour = 'green'
         symbol = 'key'
+        title = line[0].lstrip('#')
+        body = '\n'.join(line[1:])
+        safetitle = title.replace(' ', '-')
+        safetitle = safetitle.replace('`', '')
+        index = urlquote(safetitle, safe='?!$\\') + ' '
+    elif 'References' in line[0]:
+        colour = 'green'
+        symbol = 'book'
         title = line[0].lstrip('#')
         body = '\n'.join(line[1:])
         safetitle = title.replace(' ', '-')
@@ -178,16 +186,16 @@ for c in markdownlist:
         index = urlquote(safetitle, safe='?!$\\') + '%0A'
     else:
         colour = None
-    
+
     if colour is not None:
         htmltitle = nc.filters.markdown2html(title)
         temp = htmltitle.replace('<p>', '')
         htmltitle = temp.replace('</p>', '')
-        
+
         htmlbody = nc.filters.markdown2html(body)
         temp = htmlbody.replace('*', '&ast;')
         htmlbody = temp.replace('_', '&lowbar;')
-        
+
         c['source'] = apply_template(colour, symbol, htmltitle, htmlbody, index)
 
 def navigation_triple(directory, inputfile):
@@ -200,22 +208,22 @@ def navigation_triple(directory, inputfile):
         contents.remove('.ipynb_checkpoints')
     except ValueError:
         pass
-    
+
     # Remove solution files from index
     contents = [f for f in contents if '-soln' not in f]
-    
+
     for afile in contents:
         print('          ', afile)
-    
+
     contents.append(contents[0])
-    
+
     current = inputfile.split('/')[-1]
     # Exceptional case if you're making a new solution document
     if '-soln' in current:
         current = current.replace('-soln','')
-    
+
     index = contents.index(current)
-    
+
     outdir = './'
     print('Navigation triple is: ', outdir+contents[index-1], outdir+contents[0], outdir+contents[index+1])
     triple = {  'previous' : outdir+contents[index-1],
@@ -226,19 +234,19 @@ def navigation_triple(directory, inputfile):
 if args.footercell is not None:
     print('Reading from footercell: ' + args.footercell.name)
     footer = nf.read(args.footercell, nf.NO_CONVERT)
-    
+
     triple = {'index' : './00_schedule.ipynb'} # Prevent error
     if args.sourcedir is not None:
         triple = navigation_triple(args.sourcedir, args.input.name)
         for cell in footer['cells']:
             #print(cell['source'].format_map(triple))
             cell['source'] = cell['source'].format_map(triple)
-    
+
     inputname = './' + args.input.name.split('/')[-1]
     if triple['index'] != inputname:
         plain['cells'].append(*footer['cells'])
     args.footercell.close()
-    
+
 outfp = open(args.output, 'w')
 print('Writing output file: ' + args.output)
 plain['metadata']['celltoolbar'] = 'None'
@@ -254,5 +262,3 @@ if solnflag:
     #solnb['metadata']['livereveal'] =  {"scroll" : True}
     nf.write(solnb, solfp)
     solfp.close()
-    
-    
